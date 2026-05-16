@@ -17,6 +17,7 @@ pub fn expand(attr: TokenStream, item: TokenStream) -> Result<TokenStream, syn::
     };
 
     let permissions: Vec<_> = args.permissions.iter().collect();
+    let host_permissions: Vec<_> = args.host_permissions.iter().collect();
 
     let struct_name = &item_struct.ident;
 
@@ -30,6 +31,7 @@ pub fn expand(attr: TokenStream, item: TokenStream) -> Result<TokenStream, syn::
             pub const VERSION: &str = #version;
             pub const DESCRIPTION: Option<&str> = #description;
             pub const PERMISSIONS: &[&str] = &[#(#permissions),*];
+            pub const HOST_PERMISSIONS: &[&str] = &[#(#host_permissions),*];
         }
 
         #[doc(hidden)]

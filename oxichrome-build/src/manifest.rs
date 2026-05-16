@@ -12,6 +12,8 @@ struct Manifest {
     description: Option<String>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     permissions: Vec<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    host_permissions: Vec<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     action: Option<Action>,
     background: BackgroundConfig,
@@ -81,6 +83,7 @@ pub fn generate_manifest(metadata: &ExtensionMetadata, browser: Browser) -> anyh
         version: version.to_string(),
         description: metadata.description.clone(),
         permissions: metadata.permissions.clone(),
+        host_permissions: metadata.host_permissions.clone(),
         action: if metadata.has_popup {
             Some(Action {
                 default_popup: "popup.html".to_string(),
@@ -156,6 +159,7 @@ mod tests {
             version: Some("1.0.0".to_string()),
             description: Some("A test extension".to_string()),
             permissions: vec!["storage".to_string(), "tabs".to_string()],
+            host_permissions: vec![],
             background_functions: vec!["start".to_string()],
             event_handlers: vec![],
             has_popup: true,
@@ -189,6 +193,7 @@ mod tests {
             version: Some("1.0.0".to_string()),
             description: None,
             permissions: vec![],
+            host_permissions: vec![],
             background_functions: vec![],
             event_handlers: vec![],
             has_popup: false,
@@ -222,6 +227,7 @@ mod tests {
             version: Some("1.0.0".to_string()),
             description: None,
             permissions: vec![],
+            host_permissions: vec![],
             background_functions: vec![],
             event_handlers: vec![],
             has_popup: false,
@@ -262,5 +268,39 @@ mod tests {
             parsed["browser_specific_settings"]["gecko"]["id"],
             "test-extension@oxichrome.dev"
         );
+    }
+
+    #[test]
+    fn test_generate_manifest_with_host_permissions() {
+        let metadata = ExtensionMetadata {
+            name: Some("Test".to_string()),
+            version: Some("1.0.0".to_string()),
+            description: None,
+            permissions: vec!["storage".to_string()],
+            host_permissions: vec![
+                "*://developer.mozilla.org/*".to_string(),
+                "*://*.example.org/*".to_string(),
+            ],
+            background_functions: vec![],
+            event_handlers: vec![],
+            has_popup: false,
+            has_options_page: false,
+            content_scripts: vec![],
+        };
+        let json = generate_manifest(&metadata, Browser::Chromium).unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(parsed["host_permissions"][0], "*://developer.mozilla.org/*");
+        assert_eq!(parsed["host_permissions"][1], "*://*.example.org/*");
+        assert_eq!(parsed["permissions"][0], "storage");
+    }
+
+    #[test]
+    fn test_generate_manifest_without_host_permissions() {
+        let metadata = test_metadata();
+        let json = generate_manifest(&metadata, Browser::Chromium).unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
+
+        assert!(parsed.get("host_permissions").is_none());
     }
 }
