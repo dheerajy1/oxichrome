@@ -15,8 +15,8 @@ fn validate_host_permission_pattern(pattern: &LitStr) -> syn::Result<()> {
         7
     } else if val.starts_with("*://") {
         4
-    } else if val.starts_with("file://") {
-        7
+    } else if val.starts_with("file:///") {
+        8
     } else if val.starts_with("ftp://") {
         6
     } else {
@@ -24,7 +24,7 @@ fn validate_host_permission_pattern(pattern: &LitStr) -> syn::Result<()> {
             pattern.span(),
             format!(
                 "invalid host_permission pattern `{val}`: must start with a scheme \
-                 (e.g. `https://`, `*://`, `http://`) or be `<all_urls>` \
+                 (e.g. `https://`, `*://`, `http://`, `file:///`) or be `<all_urls>` \
                 See https://developer.chrome.com/docs/extensions/develop/concepts/match-patterns \
                 and/or https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Match_patterns#invalid_or_unmatched_patterns"
             ),
@@ -43,6 +43,13 @@ fn validate_host_permission_pattern(pattern: &LitStr) -> syn::Result<()> {
     }
 
     let rest = &val[scheme_end..];
+
+    if rest.starts_with('/') {
+        return Err(syn::Error::new(
+            pattern.span(),
+            format!("invalid host_permission pattern `{val}`: host cannot be empty"),
+        ));
+    }
 
     let path_start = rest.find('/');
     if path_start.is_none() {
@@ -409,6 +416,8 @@ mod tests {
             ("*://*", "empty path"),
             ("resource://path/", "unsupported scheme"),
             ("https://www.mozilla.org/#section1", "fragment identifier"),
+            ("https:///path/", "missing host"),
+            ("file://somehost/path", "invalid"),
         ];
 
         for (pattern, _reason) in invalid_patterns {
