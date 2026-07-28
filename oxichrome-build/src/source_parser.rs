@@ -10,6 +10,7 @@ pub struct ExtensionMetadata {
     pub version: Option<String>,
     pub description: Option<String>,
     pub permissions: Vec<String>,
+    pub host_permissions: Vec<String>,
     pub background_functions: Vec<String>,
     pub event_handlers: Vec<EventHandler>,
     pub has_popup: bool,
@@ -85,6 +86,14 @@ impl MetadataVisitor {
                         for elem in &arr.elems {
                             if let Expr::Lit(ExprLit { lit: Lit::Str(s), .. }) = elem {
                                 self.metadata.permissions.push(s.value());
+                            }
+                        }
+                    }
+                } else if path.is_ident("host_permissions") {
+                    if let Expr::Array(arr) = value {
+                        for elem in &arr.elems {
+                            if let Expr::Lit(ExprLit { lit: Lit::Str(s), .. }) = elem {
+                                self.metadata.host_permissions.push(s.value());
                             }
                         }
                     }
@@ -329,5 +338,23 @@ mod tests {
         assert_eq!(cs.run_at.as_deref(), Some("document_start"));
         assert_eq!(cs.all_frames, Some(true));
         assert_eq!(cs.css, vec!["styles.css", "theme.css"]);
+    }
+
+    #[test]
+    fn test_parse_extension_with_host_permissions() {
+        let source = r#"
+            #[oxichrome::extension(
+                name = "Test",
+                version = "1.0.0",
+                permissions = ["storage"],
+                host_permissions = ["*://developer.mozilla.org/*", "*://*.example.org/*"]
+            )]
+            struct MyExt;
+        "#;
+
+        let metadata = parse_source_str(source).unwrap();
+        assert_eq!(metadata.host_permissions.len(), 2);
+        assert_eq!(metadata.host_permissions[0], "*://developer.mozilla.org/*");
+        assert_eq!(metadata.host_permissions[1], "*://*.example.org/*");
     }
 }

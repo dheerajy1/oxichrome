@@ -1,12 +1,118 @@
 use syn::parse::{Parse, ParseStream};
 use syn::{Ident, LitBool, LitStr, Token};
 
+/// See <https://developer.chrome.com/docs/extensions/develop/concepts/match-patterns> from <https://developer.chrome.com/docs/extensions/develop/concepts/declare-permissions#host-permissions>
+/// and also <https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Match_patterns#invalid_or_unmatched_patterns> from <https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/manifest.json/host_permissions>
+fn validate_host_permission_pattern(pattern: &LitStr) -> syn::Result<()> {
+    let val = pattern.value();
+    if val == "<all_urls>" {
+        return Ok(());
+    }
+
+    let scheme_end = if val.starts_with("https://") {
+        8
+    } else if val.starts_with("http://") {
+        7
+    } else if val.starts_with("*://") {
+        4
+    } else if val.starts_with("file:///") {
+        8
+    } else if val.starts_with("ftp://") {
+        6
+    } else {
+        return Err(syn::Error::new(
+            pattern.span(),
+            format!(
+                "invalid host_permission pattern `{val}`: must start with a scheme \
+                 (e.g. `https://`, `*://`, `http://`, `file:///`) or be `<all_urls>` \
+                See https://developer.chrome.com/docs/extensions/develop/concepts/match-patterns \
+                and/or https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Match_patterns#invalid_or_unmatched_patterns"
+            ),
+        ));
+    };
+
+    // Check for fragment identifiers (not allowed)
+    if val.contains('#') {
+        return Err(syn::Error::new(
+            pattern.span(),
+            format!(
+                "invalid host_permission pattern `{val}`: fragment identifiers (#) are not allowed \
+                 in match patterns"
+            ),
+        ));
+    }
+
+    let rest = &val[scheme_end..];
+
+    if rest.starts_with('/') {
+        return Err(syn::Error::new(
+            pattern.span(),
+            format!("invalid host_permission pattern `{val}`: host cannot be empty"),
+        ));
+    }
+
+    let path_start = rest.find('/');
+    if path_start.is_none() {
+        return Err(syn::Error::new(
+            pattern.span(),
+            format!(
+                "invalid host_permission pattern `{val}`: must include a path starting with '/' \
+                 (e.g. `https://example.org/`, `*://*.example.org/*`)"
+            ),
+        ));
+    }
+
+    let host_and_port = &rest[..path_start.unwrap()];
+    let (host, port) = if let Some(colon_pos) = host_and_port.rfind(':') {
+        (
+            &host_and_port[..colon_pos],
+            Some(&host_and_port[colon_pos + 1..]),
+        )
+    } else {
+        (host_and_port, None)
+    };
+
+    if host.contains('*') {
+        // Wildcard must be at the start...
+        if !host.starts_with('*') {
+            return Err(syn::Error::new(
+                pattern.span(),
+                format!(
+                    "invalid host_permission pattern `{val}`: wildcard (*) in host must be at the start"
+                ),
+            ));
+        }
+        // ...and must be alone or followed by period mark
+        if host != "*" && !host.starts_with("*.") {
+            return Err(syn::Error::new(
+                pattern.span(),
+                format!(
+                    "invalid host_permission pattern `{val}`: wildcard (*) must be alone or followed by a dot (e.g. `*` or `*.example.org`)"
+                ),
+            ));
+        }
+    }
+
+    // Validate port if present (Chrome allows * for port)
+    if let Some(port_str) = port {
+        if port_str != "*" && port_str.parse::<u16>().is_err() {
+            return Err(syn::Error::new(
+                pattern.span(),
+                format!("invalid host_permission pattern `{val}`: invalid port `{port_str}`"),
+            ));
+        }
+    }
+
+    Ok(())
+}
+
 #[derive(Debug)]
 pub struct ExtensionArgs {
     pub name: LitStr,
     pub version: LitStr,
     pub description: Option<LitStr>,
     pub permissions: Vec<LitStr>,
+    pub host_permissions: Vec<LitStr>,
 }
 
 impl Parse for ExtensionArgs {
@@ -15,6 +121,7 @@ impl Parse for ExtensionArgs {
         let mut version: Option<LitStr> = None;
         let mut description: Option<LitStr> = None;
         let mut permissions: Vec<LitStr> = Vec::new();
+        let mut host_permissions: Vec<LitStr> = Vec::new();
 
         while !input.is_empty() {
             let key: Ident = input.parse()?;
@@ -35,6 +142,18 @@ impl Parse for ExtensionArgs {
                     syn::bracketed!(content in input);
                     while !content.is_empty() {
                         permissions.push(content.parse()?);
+                        if !content.is_empty() {
+                            content.parse::<Token![,]>()?;
+                        }
+                    }
+                }
+                "host_permissions" => {
+                    let content;
+                    syn::bracketed!(content in input);
+                    while !content.is_empty() {
+                        let pattern: LitStr = content.parse()?;
+                        validate_host_permission_pattern(&pattern)?;
+                        host_permissions.push(pattern);
                         if !content.is_empty() {
                             content.parse::<Token![,]>()?;
                         }
@@ -71,6 +190,7 @@ impl Parse for ExtensionArgs {
             version,
             description,
             permissions,
+            host_permissions,
         })
     }
 }
@@ -205,6 +325,117 @@ mod tests {
         assert_eq!(args.name.value(), "Test Extension");
         assert_eq!(args.version.value(), "1.0.0");
         assert_eq!(args.permissions.len(), 2);
+        assert_eq!(args.host_permissions.len(), 0);
+    }
+
+    #[test]
+    fn parse_extension_args_with_host_permissions() {
+        let tokens: proc_macro2::TokenStream = quote::quote! {
+            name = "Test Extension",
+            version = "1.0.0",
+            permissions = ["storage"],
+            host_permissions = ["*://developer.mozilla.org/*", "*://*.example.org/*"]
+        };
+        let args: ExtensionArgs = syn::parse2(tokens).unwrap();
+        assert_eq!(args.name.value(), "Test Extension");
+        assert_eq!(args.host_permissions.len(), 2);
+        assert_eq!(
+            args.host_permissions[0].value(),
+            "*://developer.mozilla.org/*"
+        );
+        assert_eq!(args.host_permissions[1].value(), "*://*.example.org/*");
+    }
+
+    #[test]
+    fn parse_extension_args_host_permissions_invalid_pattern() {
+        let tokens: proc_macro2::TokenStream = quote::quote! {
+            name = "Test Extension",
+            version = "1.0.0",
+            host_permissions = ["invalid-pattern"]
+        };
+        let err = syn::parse2::<ExtensionArgs>(tokens).unwrap_err();
+        assert!(err.to_string().contains("must start with a scheme"));
+    }
+
+    #[test]
+    fn parse_extension_args_host_permissions_all_urls() {
+        let tokens: proc_macro2::TokenStream = quote::quote! {
+            name = "Test Extension",
+            version = "1.0.0",
+            host_permissions = ["<all_urls>"]
+        };
+        let args: ExtensionArgs = syn::parse2(tokens).unwrap();
+        assert_eq!(args.host_permissions.len(), 1);
+        assert_eq!(args.host_permissions[0].value(), "<all_urls>");
+    }
+
+    #[test]
+    fn parse_host_permissions_valid_patterns() {
+        let valid_patterns = vec![
+            "<all_urls>",
+            "*://*/*",
+            "https://*/*",
+            "*://*.mozilla.org/*",
+            "*://mozilla.org/",
+            "https://*/path",
+            "https://*/path/",
+            "https://mozilla.org/*",
+            "https://mozilla.org/a/b/c/",
+            "https://mozilla.org/*/b/*/",
+            "file:///blah/*",
+            "ftp://mozilla.org/",
+            "http://127.0.0.1/*",
+            "https://*.google.com/foo*bar",
+            "https://*/foo*",
+            "http://*:*/*",
+        ];
+
+        for pattern in valid_patterns {
+            let tokens: proc_macro2::TokenStream = quote::quote! {
+                name = "Test",
+                version = "1.0.0",
+                host_permissions = [#pattern]
+            };
+            let args = syn::parse2::<ExtensionArgs>(tokens)
+                .unwrap_or_else(|e| panic!("Pattern '{}' should be valid: {}", pattern, e));
+            assert_eq!(args.host_permissions[0].value(), pattern);
+        }
+    }
+
+    #[test]
+    fn parse_host_permissions_invalid_patterns() {
+        let invalid_patterns = vec![
+            ("invalid-pattern", "missing scheme"),
+            ("https://mozilla.org", "missing path"),
+            ("https://mozilla.*.org/", "wildcard in middle of host"),
+            (
+                "https://*zilla.org/",
+                "wildcard must be alone or followed by dot",
+            ),
+            ("http*://mozilla.org/", "wildcard in scheme"),
+            ("*://*", "empty path"),
+            ("resource://path/", "unsupported scheme"),
+            ("https://www.mozilla.org/#section1", "fragment identifier"),
+            ("https:///path/", "missing host"),
+            ("file://somehost/path", "invalid"),
+        ];
+
+        for (pattern, _reason) in invalid_patterns {
+            let tokens: proc_macro2::TokenStream = quote::quote! {
+                name = "Test",
+                version = "1.0.0",
+                host_permissions = [#pattern]
+            };
+            let err = syn::parse2::<ExtensionArgs>(tokens)
+                .expect_err(&format!("Pattern '{}' should be invalid", pattern));
+            assert!(
+                err.to_string().contains("invalid host_permission pattern")
+                    || err.to_string().contains("must start with a scheme"),
+                "Expected scheme error for '{}', got: {}",
+                pattern,
+                err
+            );
+        }
     }
 
     #[test]
