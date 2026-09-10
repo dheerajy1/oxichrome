@@ -1,0 +1,72 @@
+~/dev/vs-code/oxichrome
+
+./
+├── .gitignore
+├── Cargo.lock
+├── Cargo.toml
+├── LICENSE
+├── README.md
+├── assets/
+│   └── og.png
+├── examples/
+│   ├── color-picker/
+│   │   ├── Cargo.toml
+│   │   └── src/
+│   │       └── lib.rs
+│   └── counter-extension/
+│       ├── Cargo.toml
+│       └── src/
+│           └── lib.rs
+├── oxichrome/
+│   ├── Cargo.toml
+│   └── src/
+│       └── lib.rs
+├── oxichrome-build/
+│   ├── Cargo.toml
+│   ├── README.md
+│   └── src/
+│       ├── lib.rs
+│       ├── manifest.rs
+│       ├── shims.rs
+│       ├── source_parser.rs
+│       └── templates.rs
+├── oxichrome-cli/
+│   ├── Cargo.toml
+│   └── src/
+│       ├── commands/
+│       │   ├── build.rs
+│       │   ├── clean.rs
+│       │   ├── mod.rs
+│       │   └── new.rs
+│       └── main.rs
+├── oxichrome-core/
+│   ├── Cargo.toml
+│   ├── README.md
+│   └── src/
+│       ├── content_script.rs
+│       ├── error.rs
+│       ├── http.rs
+│       ├── js_bridge.rs
+│       ├── lib.rs
+│       ├── runtime.rs
+│       ├── storage.rs
+│       ├── tabs.rs
+│       └── webrequest.rs
+├── oxichrome-macros/
+│   ├── Cargo.toml
+│   ├── README.md
+│   └── src/
+│       ├── codegen/
+│       │   ├── background.rs
+│       │   ├── content_script.rs
+│       │   ├── event_handler.rs
+│       │   ├── extension.rs
+│       │   ├── mod.rs
+│       │   ├── options_page.rs
+│       │   └── popup.rs
+│       ├── error.rs
+│       ├── lib.rs
+│       └── parse.rs
+└── structure.txt
+
+19 directories, 49 files

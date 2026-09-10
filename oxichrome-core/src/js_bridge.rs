@@ -75,3 +75,17 @@ macro_rules! log {
 pub fn __log_impl(msg: &str) {
     web_sys::console::log_1(&wasm_bindgen::JsValue::from_str(msg));
 }
+
+// chrome.webRequest (observe-only: onCompleted)
+
+#[wasm_bindgen]
+extern "C" {
+    /// Register an observe-only onCompleted listener.
+    /// `filter` is a JS object shaped like Chrome's RequestFilter (e.g. `{ urls: [...] }`).
+    /// Do not pass blocking/extraInfoSpec — this binding is non-blocking.
+    #[wasm_bindgen(js_namespace = ["chrome", "webRequest", "onCompleted"], js_name = addListener)]
+    pub fn chrome_web_request_on_completed_add_listener(
+        callback: &Closure<dyn FnMut(JsValue)>,
+        filter: &JsValue,
+    );
+}

@@ -4,9 +4,11 @@ pub use oxichrome_core as core;
 
 pub use oxichrome_core::content_script::RunAt;
 pub use oxichrome_core::error::{OxichromeError, Result};
+pub use oxichrome_core::http;
 pub use oxichrome_core::runtime;
 pub use oxichrome_core::storage;
 pub use oxichrome_core::tabs;
+pub use oxichrome_core::webrequest;
 
 pub use oxichrome_core::log;
 pub use oxichrome_core::__log_impl;
@@ -26,8 +28,10 @@ pub mod prelude {
     pub use crate::{extension, background, on, popup, options_page, content_script};
     pub use crate::{OxichromeError, Result};
     pub use crate::core::error;
+    pub use crate::http;
     pub use crate::runtime;
     pub use crate::storage;
     pub use crate::tabs;
+    pub use crate::webrequest;
     pub use serde::{Serialize, Deserialize};
 }
