@@ -145,6 +145,7 @@ mod tests {
             name: Some("Test".to_string()),
             version: Some("1.0.0".to_string()),
             description: None,
+            key: None,
             permissions: vec![],
             host_permissions: vec![],
             background_functions: vec!["start".to_string()],

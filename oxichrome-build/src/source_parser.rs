@@ -11,6 +11,7 @@ pub struct ExtensionMetadata {
     pub description: Option<String>,
     pub permissions: Vec<String>,
     pub host_permissions: Vec<String>,
+    pub key: Option<String>,
     pub background_functions: Vec<String>,
     pub event_handlers: Vec<EventHandler>,
     pub has_popup: bool,
@@ -73,6 +74,9 @@ impl MetadataVisitor {
                     self.metadata.version = Some(s.value());
                 } else if path.is_ident("description") {
                     self.metadata.description = Some(s.value());
+                }
+                else if path.is_ident("key") {
+                    self.metadata.key = Some(s.value());
                 }
             }
             if let Meta::NameValue(MetaNameValue {

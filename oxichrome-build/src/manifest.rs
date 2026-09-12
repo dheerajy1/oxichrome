@@ -10,6 +10,8 @@ struct Manifest {
     version: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     description: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    key: Option<String>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     permissions: Vec<String>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
@@ -82,6 +84,7 @@ pub fn generate_manifest(metadata: &ExtensionMetadata, browser: Browser) -> anyh
         name: name.to_string(),
         version: version.to_string(),
         description: metadata.description.clone(),
+        key: metadata.key.clone(),
         permissions: metadata.permissions.clone(),
         host_permissions: metadata.host_permissions.clone(),
         action: if metadata.has_popup {
@@ -158,6 +161,7 @@ mod tests {
             name: Some("Test Extension".to_string()),
             version: Some("1.0.0".to_string()),
             description: Some("A test extension".to_string()),
+            key: None,
             permissions: vec!["storage".to_string(), "tabs".to_string()],
             host_permissions: vec![],
             background_functions: vec!["start".to_string()],
@@ -192,6 +196,7 @@ mod tests {
             name: Some("Test".to_string()),
             version: Some("1.0.0".to_string()),
             description: None,
+            key: None,
             permissions: vec![],
             host_permissions: vec![],
             background_functions: vec![],
@@ -226,6 +231,7 @@ mod tests {
             name: Some("Test".to_string()),
             version: Some("1.0.0".to_string()),
             description: None,
+            key: None,
             permissions: vec![],
             host_permissions: vec![],
             background_functions: vec![],
@@ -276,6 +282,7 @@ mod tests {
             name: Some("Test".to_string()),
             version: Some("1.0.0".to_string()),
             description: None,
+            key: None,
             permissions: vec!["storage".to_string()],
             host_permissions: vec![
                 "*://developer.mozilla.org/*".to_string(),

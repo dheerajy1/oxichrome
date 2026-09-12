@@ -111,6 +111,7 @@ pub struct ExtensionArgs {
     pub name: LitStr,
     pub version: LitStr,
     pub description: Option<LitStr>,
+    pub key: Option<LitStr>,
     pub permissions: Vec<LitStr>,
     pub host_permissions: Vec<LitStr>,
 }
@@ -120,14 +121,15 @@ impl Parse for ExtensionArgs {
         let mut name: Option<LitStr> = None;
         let mut version: Option<LitStr> = None;
         let mut description: Option<LitStr> = None;
+        let mut key: Option<LitStr> = None;
         let mut permissions: Vec<LitStr> = Vec::new();
         let mut host_permissions: Vec<LitStr> = Vec::new();
 
         while !input.is_empty() {
-            let key: Ident = input.parse()?;
+            let arg_ident: Ident = input.parse()?;
             input.parse::<Token![=]>()?;
 
-            match key.to_string().as_str() {
+            match arg_ident.to_string().as_str() {
                 "name" => {
                     name = Some(input.parse()?);
                 }
@@ -136,6 +138,9 @@ impl Parse for ExtensionArgs {
                 }
                 "description" => {
                     description = Some(input.parse()?);
+                }
+                "key" => {
+                    key = Some(input.parse()?);
                 }
                 "permissions" => {
                     let content;
@@ -161,7 +166,7 @@ impl Parse for ExtensionArgs {
                 }
                 other => {
                     return Err(syn::Error::new(
-                        key.span(),
+                        arg_ident.span(),
                         format!("unknown argument `{other}`"),
                     ));
                 }
@@ -189,6 +194,7 @@ impl Parse for ExtensionArgs {
             name,
             version,
             description,
+            key,
             permissions,
             host_permissions,
         })

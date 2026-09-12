@@ -16,6 +16,11 @@ pub fn expand(attr: TokenStream, item: TokenStream) -> Result<TokenStream, syn::
         None => quote! { None::<&str> },
     };
 
+    let key = match &args.key {
+        Some(k) => quote! { Some(#k) },
+        None => quote! { None::<&str> },
+    };
+
     let permissions: Vec<_> = args.permissions.iter().collect();
     let host_permissions: Vec<_> = args.host_permissions.iter().collect();
 
@@ -30,6 +35,7 @@ pub fn expand(attr: TokenStream, item: TokenStream) -> Result<TokenStream, syn::
             pub const NAME: &str = #name;
             pub const VERSION: &str = #version;
             pub const DESCRIPTION: Option<&str> = #description;
+            pub const KEY: Option<&str> = #key;
             pub const PERMISSIONS: &[&str] = &[#(#permissions),*];
             pub const HOST_PERMISSIONS: &[&str] = &[#(#host_permissions),*];
         }

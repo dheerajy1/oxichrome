@@ -1,5 +1,5 @@
 use leptos::prelude::*;
-use oxichrome::prelude::*;
+// use oxichrome::prelude::*;
 
 #[oxichrome::extension(
     name = "Counter Extension",
